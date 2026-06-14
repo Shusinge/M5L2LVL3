@@ -28,9 +28,11 @@ async def start(ctx: commands.Context):
 async def help_me(ctx: commands.Context):
     embed = discord.Embed(title="📖 Daftar Perintah", color=discord.Color.blue())
     embed.add_field(name="!start", value="Sapaan awal", inline=False)
-    embed.add_field(name="!remember_city <nama_kota>", value="Simpan kota ke daftar kamu (bahasa Inggris)", inline=False)
+    embed.add_field(name="!remember_city <kota>", value="Simpan kota ke daftar kamu (bahasa Inggris)", inline=False)
+    embed.add_field(name="!delete_city <kota>", value="Hapus kota dari daftar simpanan kamu", inline=False)      # ← BARU
+    embed.add_field(name="!search_city <keyword>", value="Cari kota dengan kata kunci parsial", inline=False)   # ← BARU
     embed.add_field(name="!show_my_cities", value="Tampilkan peta semua kota yang kamu simpan", inline=False)
-    embed.add_field(name="!show_city <nama_kota>", value="Tampilkan peta satu kota tertentu", inline=False)
+    embed.add_field(name="!show_city <kota>", value="Tampilkan peta satu kota tertentu", inline=False)
     await ctx.send(embed=embed)
 
 
@@ -80,6 +82,47 @@ async def remember_city(ctx: commands.Context, *, city_name: str = ""):
     else:
         await ctx.send(f"❌ Kota **{city_name}** tidak ditemukan. Pastikan nama kota dalam bahasa Inggris dan ejaan benar.")
 
+@bot.command()
+async def delete_city(ctx: commands.Context, *, city_name: str = ""):
+    if not city_name.strip():
+        await ctx.send("⚠️ Format: `!delete_city <nama_kota>`")
+        return
+
+    result = manager.delete_city(ctx.author.id, city_name)
+    if result is None:
+        await ctx.send(f"❌ Kota **{city_name}** tidak ditemukan dalam database.")
+    elif result:
+        await ctx.send(f"🗑️ Kota **{city_name}** berhasil dihapus dari daftar kamu!")
+    else:
+        await ctx.send(f"ℹ️ Kota **{city_name}** tidak ada di daftar simpanan kamu.")
+
+
+@bot.command()
+async def search_city(ctx: commands.Context, *, keyword: str = ""):
+    if not keyword.strip():
+        await ctx.send("⚠️ Format: `!search_city <kata_kunci>`\nContoh: `!search_city new`")
+        return
+
+    results = manager.search_cities(keyword)
+    if not results:
+        await ctx.send(f"🔍 Tidak ada kota yang cocok dengan kata kunci **{keyword}**.")
+        return
+
+    # Format hasil pencarian sebagai embed yang rapi
+    embed = discord.Embed(
+        title=f"🔍 Hasil Pencarian: \"{keyword}\"",
+        description=f"Ditemukan **{len(results)}** kota:",
+        color=discord.Color.green()
+    )
+    for i, city in enumerate(results, 1):
+        embed.add_field(
+            name=f"{i}. {city['city']}",
+            value=f"📍 Lat: {city['lat']:.4f}, Lng: {city['lng']:.4f}",
+            inline=False
+        )
+    
+    embed.set_footer(text="💡 Gunakan !remember_city <nama_kota> untuk menyimpan kota yang diinginkan")
+    await ctx.send(embed=embed)
 
 if __name__ == "__main__":
     bot.run(TOKEN)
